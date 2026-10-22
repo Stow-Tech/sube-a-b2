@@ -161,7 +161,15 @@ function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){retur
 function toast(t){var el=document.createElement('div');el.className='toast';el.textContent=t;document.body.appendChild(el);setTimeout(function(){el.remove()},2800)}
 function sortWords(){words.sort(function(a,b){return a.word.localeCompare(b.word,'en',{sensitivity:'base'})})}
 function filtered(){var s=q.trim().toLowerCase();if(!s)return words;return words.filter(function(x){return (x.word+' '+x.definition+' '+(x.part_of_speech||'')+' '+(x.example||'')).toLowerCase().indexOf(s)>-1})}
-function speak(w){try{var u=new SpeechSynthesisUtterance(w);u.lang='en-GB';u.rate=.9;speechSynthesis.cancel();speechSynthesis.speak(u)}catch(e){toast('Audio no disponible en este navegador')}}
+function speak(w){
+  if(!window.speechSynthesis||!window.SpeechSynthesisUtterance){toast('Abre la página en Safari o Chrome para escuchar el audio');return}
+  var s=window.speechSynthesis,u=new SpeechSynthesisUtterance(w),vs=s.getVoices()||[];
+  var v=vs.filter(function(x){return /^en[-_]GB/i.test(x.lang)})[0]||vs.filter(function(x){return /^en/i.test(x.lang)})[0];
+  if(v)u.voice=v;u.lang=v?v.lang:'en-GB';u.rate=.9;u.volume=1;
+  if(s.speaking||s.pending)s.cancel();
+  s.resume();s.speak(u);
+}
+try{if(window.speechSynthesis){speechSynthesis.getVoices();speechSynthesis.onvoiceschanged=function(){speechSynthesis.getVoices()}}}catch(e){}
 
 function cefr(){
   var L=['A1','A2','B1','B2','C1','C2'];

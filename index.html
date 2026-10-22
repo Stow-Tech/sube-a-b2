@@ -134,6 +134,11 @@ footer{padding-block:32px 48px;display:flex;justify-content:space-between;gap:12
 .def .ex{font-family:var(--body);font-size:16px;font-weight:400;line-height:1.5;border-left:0;padding-left:0;margin-top:10px}
 /* Numeración */
 .num{display:block;margin-bottom:6px;font-family:var(--ui);font-size:12px;font-weight:600;letter-spacing:.14em;color:var(--accent);font-variant-numeric:tabular-nums lining-nums}
+/* Traducción + definición proporcional */
+.def p{font-size:clamp(20px,2.2vw,24px);font-weight:500;line-height:1.4}
+.def .ex{font-size:15px}
+.tr{margin:6px 0 0;font-family:var(--body);font-size:clamp(17px,1.8vw,19px);color:var(--muted)}
+.tr::before{content:"ES  ";font-family:var(--ui);font-size:11px;font-weight:600;letter-spacing:.12em;color:var(--accent)}
 </style>
 </head>
 <body>
@@ -160,7 +165,7 @@ var DEMO=[
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
 function toast(t){var el=document.createElement('div');el.className='toast';el.textContent=t;document.body.appendChild(el);setTimeout(function(){el.remove()},2800)}
 function sortWords(){words.sort(function(a,b){return a.word.localeCompare(b.word,'en',{sensitivity:'base'})})}
-function filtered(){var s=q.trim().toLowerCase();if(!s)return words;return words.filter(function(x){return (x.word+' '+x.definition+' '+(x.part_of_speech||'')+' '+(x.example||'')).toLowerCase().indexOf(s)>-1})}
+function filtered(){var s=q.trim().toLowerCase();if(!s)return words;return words.filter(function(x){return (x.word+' '+x.definition+' '+(x.part_of_speech||'')+' '+(x.example||'')+' '+(x.translation||'')).toLowerCase().indexOf(s)>-1})}
 function speak(w){
   if(!window.speechSynthesis||!window.SpeechSynthesisUtterance){toast('Abre la página en Safari o Chrome para escuchar el audio');return}
   var s=window.speechSynthesis,u=new SpeechSynthesisUtterance(w),vs=s.getVoices()||[];
@@ -181,7 +186,7 @@ var SPK='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="cur
 
 function rowHTML(x){
   return '<article class="row">'+
-    '<div class="word"><span class="num">Nº '+String(words.indexOf(x)+1).padStart(2,'0')+'</span><h3>'+esc(x.word)+'</h3><div class="meta">'+(x.part_of_speech?'<span class="type">'+esc(x.part_of_speech)+'</span>':'')+
+    '<div class="word"><span class="num">Nº '+String(words.indexOf(x)+1).padStart(2,'0')+'</span><h3>'+esc(x.word)+'</h3>'+(x.translation?'<p class="tr">'+esc(x.translation)+'</p>':'')+'<div class="meta">'+(x.part_of_speech?'<span class="type">'+esc(x.part_of_speech)+'</span>':'')+
     '<span class="lvl">B2</span><button class="speak" data-say="'+esc(x.word)+'" aria-label="Escuchar '+esc(x.word)+'" title="Escuchar · Listen">'+SPK+'</button></div></div>'+
     '<div class="def"><p>'+esc(x.definition)+'</p>'+(x.example?'<p class="ex">'+esc(x.example)+'</p>':'')+'</div>'+
     (session?'<button class="del'+(pendingDel===x.id?' confirm':'')+'" data-del="'+esc(x.id)+'">'+(pendingDel===x.id?'¿Confirmar?':'Borrar')+'</button>':'')+
@@ -199,6 +204,7 @@ function adminHTML(){
   return '<div class="panel"><h2><small>Modo profesor</small>Añadir una palabra</h2>'+
     '<div class="grid2"><div class="field"><label for="nw">Palabra · Word</label><input id="nw" autocomplete="off"></div>'+
     '<div class="field"><label for="nt">Categoría · Part of speech</label><select id="nt"><option value="">—</option>'+TYPES.map(function(t){return '<option>'+t+'</option>'}).join('')+'</select></div></div>'+
+    '<div class="field"><label for="nr">Traducción al español</label><input id="nr" autocomplete="off"></div>'+
     '<div class="field"><label for="nd">Definición · Definition</label><textarea id="nd"></textarea></div>'+
     '<div class="field"><label for="ne">Ejemplo (opcional) · Example</label><input id="ne" autocomplete="off"></div>'+
     '<div class="actions"><button class="btn primary" id="add">Agregar palabra</button><button class="btn" id="lock">Cerrar sesión</button><span class="msg" id="addmsg"></span></div></div>';
@@ -215,7 +221,7 @@ function listHTML(){
 
 function render(){
   var a=document.activeElement, focusId=a&&a.id, keep={};
-  ['em','pw','nw','nt','nd','ne'].forEach(function(id){var el=document.getElementById(id);if(el)keep[id]=el.value});
+  ['em','pw','nw','nt','nd','ne','nr'].forEach(function(id){var el=document.getElementById(id);if(el)keep[id]=el.value});
   app.innerHTML=
   '<div class="band"><div class="wrap"><span>English Vocabulary Series · Level B2</span>'+
     '<button class="btn-link" id="openLock">'+(session?'● Modo profesor':'Acceso profesor')+'</button></div></div>'+
@@ -246,7 +252,7 @@ function render(){
 function listen(){
   db.collection('b2_words').onSnapshot(function(snap){
     loading=false;loadError='';
-    words=snap.docs.map(function(d){var x=d.data();return {id:d.id,word:x.word,part_of_speech:x.part_of_speech||'',definition:x.definition,example:x.example||''}});
+    words=snap.docs.map(function(d){var x=d.data();return {id:d.id,word:x.word,part_of_speech:x.part_of_speech||'',definition:x.definition,example:x.example||'',translation:x.translation||''}});
     sortWords();render();
   },function(err){loading=false;loadError='No se pudo cargar el vocabulario. Recarga la página.';console.error(err);render()});
 }
@@ -283,14 +289,14 @@ function bind(){
   var ad=document.getElementById('add');
   if(ad)ad.addEventListener('click',async function(){
     if(busy)return;
-    var w=document.getElementById('nw').value.trim(),d=document.getElementById('nd').value.trim(),t=document.getElementById('nt').value,e=document.getElementById('ne').value.trim();
+    var w=document.getElementById('nw').value.trim(),d=document.getElementById('nd').value.trim(),t=document.getElementById('nt').value,e=document.getElementById('ne').value.trim(),tr=document.getElementById('nr').value.trim();
     var m=document.getElementById('addmsg');
     if(!w||!d){m.textContent='Escribe la palabra y su definición.';m.className='msg err';return}
     if(words.some(function(x){return x.word.toLowerCase()===w.toLowerCase()})){m.textContent='“'+w+'” ya está en la lista.';m.className='msg err';return}
     busy=true;m.textContent='Guardando…';m.className='msg';
     try{
-      await db.collection('b2_words').doc(docId(w)).set({word:w,part_of_speech:t,definition:d,example:e,createdAt:firebase.firestore.FieldValue.serverTimestamp()});
-      busy=false;['nw','nd','ne'].forEach(function(id){document.getElementById(id).value=''});document.getElementById('nt').value='';
+      await db.collection('b2_words').doc(docId(w)).set({word:w,part_of_speech:t,definition:d,example:e,translation:tr,createdAt:firebase.firestore.FieldValue.serverTimestamp()});
+      busy=false;['nw','nd','ne','nr'].forEach(function(id){document.getElementById(id).value=''});document.getElementById('nt').value='';
       m.textContent='';toast('Guardado: '+w);
     }catch(err){busy=false;m.textContent='No se guardó. Revisa que tu cuenta tenga permiso.';m.className='msg err';console.error(err)}
   });

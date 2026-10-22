@@ -132,6 +132,8 @@ footer{padding-block:32px 48px;display:flex;justify-content:space-between;gap:12
 .def{text-align:center}
 .def p{margin:0 auto;font-family:var(--display);font-size:clamp(24px,3vw,32px);font-weight:600;line-height:1.25}
 .def .ex{font-family:var(--body);font-size:16px;font-weight:400;line-height:1.5;border-left:0;padding-left:0;margin-top:10px}
+/* Numeración */
+.num{display:block;margin-bottom:6px;font-family:var(--ui);font-size:12px;font-weight:600;letter-spacing:.14em;color:var(--accent);font-variant-numeric:tabular-nums lining-nums}
 </style>
 </head>
 <body>
@@ -171,7 +173,7 @@ var SPK='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="cur
 
 function rowHTML(x){
   return '<article class="row">'+
-    '<div class="word"><h3>'+esc(x.word)+'</h3><div class="meta">'+(x.part_of_speech?'<span class="type">'+esc(x.part_of_speech)+'</span>':'')+
+    '<div class="word"><span class="num">Nº '+String(words.indexOf(x)+1).padStart(2,'0')+'</span><h3>'+esc(x.word)+'</h3><div class="meta">'+(x.part_of_speech?'<span class="type">'+esc(x.part_of_speech)+'</span>':'')+
     '<span class="lvl">B2</span><button class="speak" data-say="'+esc(x.word)+'" aria-label="Escuchar '+esc(x.word)+'" title="Escuchar · Listen">'+SPK+'</button></div></div>'+
     '<div class="def"><p>'+esc(x.definition)+'</p>'+(x.example?'<p class="ex">'+esc(x.example)+'</p>':'')+'</div>'+
     (session?'<button class="del'+(pendingDel===x.id?' confirm':'')+'" data-del="'+esc(x.id)+'">'+(pendingDel===x.id?'¿Confirmar?':'Borrar')+'</button>':'')+

@@ -139,6 +139,12 @@ footer{padding-block:32px 48px;display:flex;justify-content:space-between;gap:12
 .def .ex{font-size:15px}
 .tr{margin:6px 0 0;font-family:var(--body);font-size:clamp(17px,1.8vw,19px);color:var(--muted)}
 .tr::before{content:"ES  ";font-family:var(--ui);font-size:11px;font-weight:600;letter-spacing:.12em;color:var(--accent)}
+/* Editar */
+.edit{position:absolute;top:14px;right:14px;cursor:pointer;background:var(--sheet);border:1px solid var(--rule);color:var(--ink);font-family:var(--ui);font-size:12px;padding:4px 10px}
+.edit:hover{border-color:var(--ink)}
+.row .del{top:50px}
+.row:has(.edit){padding-right:140px}
+@media (max-width:720px){.row:has(.edit){padding-right:18px}.row .edit,.row .del{position:static;justify-self:start}}
 </style>
 </head>
 <body>
@@ -153,6 +159,7 @@ footer{padding-block:32px 48px;display:flex;justify-content:space-between;gap:12
 var cfg=window.SUBE_B2_FIREBASE||{};
 var app=document.getElementById('app');
 var auth=null, db=null, words=[], session=null, q='', loading=true, loadError='', pendingDel=null, showLogin=false, busy=false, demo=false;
+var editing=null;
 var TYPES=['noun','verb','adjective','adverb','phrasal verb','idiom','collocation','preposition','conjunction','expression'];
 var DEMO=[
  {id:'d1',word:'acknowledge',part_of_speech:'verb',definition:'To accept or admit that something is true or exists.',example:'She acknowledged her mistake immediately.'},
@@ -189,6 +196,7 @@ function rowHTML(x){
     '<div class="word"><span class="num">Nº '+String(words.indexOf(x)+1).padStart(2,'0')+'</span><h3>'+esc(x.word)+'</h3>'+(x.translation?'<p class="tr">'+esc(x.translation)+'</p>':'')+'<div class="meta">'+(x.part_of_speech?'<span class="type">'+esc(x.part_of_speech)+'</span>':'')+
     '<span class="lvl">B2</span><button class="speak" data-say="'+esc(x.word)+'" aria-label="Escuchar '+esc(x.word)+'" title="Escuchar · Listen">'+SPK+'</button></div></div>'+
     '<div class="def"><p>'+esc(x.definition)+'</p>'+(x.example?'<p class="ex">'+esc(x.example)+'</p>':'')+'</div>'+
+    (session?'<button class="edit" data-edit="'+esc(x.id)+'">Editar</button>':'')+
     (session?'<button class="del'+(pendingDel===x.id?' confirm':'')+'" data-del="'+esc(x.id)+'">'+(pendingDel===x.id?'¿Confirmar?':'Borrar')+'</button>':'')+
   '</article>';
 }
@@ -201,13 +209,13 @@ function adminHTML(){
       '<div class="field"><label for="pw">Clave · Password</label><input id="pw" type="password" autocomplete="current-password"></div></div>'+
       '<div class="actions"><button class="btn primary" id="unlock">Entrar</button><button class="btn" id="cancelLock">Cancelar</button><span class="msg" id="lockmsg"></span></div></div>';
   }
-  return '<div class="panel"><h2><small>Modo profesor</small>Añadir una palabra</h2>'+
+  return '<div class="panel" id="wordpanel"><h2><small>Modo profesor</small>'+(editing?'Editar: '+esc(editing.word):'Añadir una palabra')+'</h2>'+
     '<div class="grid2"><div class="field"><label for="nw">Palabra · Word</label><input id="nw" autocomplete="off"></div>'+
     '<div class="field"><label for="nt">Categoría · Part of speech</label><select id="nt"><option value="">—</option>'+TYPES.map(function(t){return '<option>'+t+'</option>'}).join('')+'</select></div></div>'+
     '<div class="field"><label for="nr">Traducción al español</label><input id="nr" autocomplete="off"></div>'+
     '<div class="field"><label for="nd">Definición · Definition</label><textarea id="nd"></textarea></div>'+
     '<div class="field"><label for="ne">Ejemplo (opcional) · Example</label><input id="ne" autocomplete="off"></div>'+
-    '<div class="actions"><button class="btn primary" id="add">Agregar palabra</button><button class="btn" id="lock">Cerrar sesión</button><span class="msg" id="addmsg"></span></div></div>';
+    '<div class="actions"><button class="btn primary" id="add">'+(editing?'Guardar cambios':'Agregar palabra')+'</button>'+(editing?'<button class="btn" id="cancelEdit">Cancelar edición</button>':'')+'<button class="btn" id="lock">Cerrar sesión</button><span class="msg" id="addmsg"></span></div></div>';
 }
 
 function listHTML(){
@@ -284,20 +292,30 @@ function bind(){
     try{var batch=db.batch();DEMO.forEach(function(x){batch.set(db.collection('b2_words').doc(docId(x.word)),{word:x.word,part_of_speech:x.part_of_speech,definition:x.definition,example:x.example,createdAt:firebase.firestore.FieldValue.serverTimestamp()})});await batch.commit();toast('Palabras de ejemplo cargadas')}
     catch(err){sd.disabled=false;toast('No se pudieron cargar. Revisa las reglas.');console.error(err)}
   });
+  app.querySelectorAll('[data-edit]').forEach(function(b){b.addEventListener('click',function(){
+    var x=words.find(function(y){return y.id===b.getAttribute('data-edit')});if(!x)return;
+    editing=x;pendingDel=null;render();
+    document.getElementById('nw').value=x.word||'';document.getElementById('nt').value=x.part_of_speech||'';
+    document.getElementById('nr').value=x.translation||'';document.getElementById('nd').value=x.definition||'';document.getElementById('ne').value=x.example||'';
+    document.getElementById('wordpanel').scrollIntoView({behavior:'smooth',block:'start'});document.getElementById('nw').focus({preventScroll:true});
+  })});
+  var ce=document.getElementById('cancelEdit');
+  if(ce)ce.addEventListener('click',function(){editing=null;['nw','nr','nd','ne'].forEach(function(id){document.getElementById(id).value=''});document.getElementById('nt').value='';render()});
   var lk=document.getElementById('lock');
-  if(lk)lk.addEventListener('click',async function(){await auth.signOut();pendingDel=null;toast('Sesión cerrada')});
+  if(lk)lk.addEventListener('click',async function(){await auth.signOut();pendingDel=null;editing=null;toast('Sesión cerrada')});
   var ad=document.getElementById('add');
   if(ad)ad.addEventListener('click',async function(){
     if(busy)return;
     var w=document.getElementById('nw').value.trim(),d=document.getElementById('nd').value.trim(),t=document.getElementById('nt').value,e=document.getElementById('ne').value.trim(),tr=document.getElementById('nr').value.trim();
     var m=document.getElementById('addmsg');
     if(!w||!d){m.textContent='Escribe la palabra y su definición.';m.className='msg err';return}
-    if(words.some(function(x){return x.word.toLowerCase()===w.toLowerCase()})){m.textContent='“'+w+'” ya está en la lista.';m.className='msg err';return}
+    if(words.some(function(x){return x.word.toLowerCase()===w.toLowerCase()&&(!editing||x.id!==editing.id)})){m.textContent='“'+w+'” ya está en la lista.';m.className='msg err';return}
     busy=true;m.textContent='Guardando…';m.className='msg';
     try{
-      await db.collection('b2_words').doc(docId(w)).set({word:w,part_of_speech:t,definition:d,example:e,translation:tr,createdAt:firebase.firestore.FieldValue.serverTimestamp()});
+      if(editing)await db.collection('b2_words').doc(editing.id).update({word:w,part_of_speech:t,definition:d,example:e,translation:tr});
+      else await db.collection('b2_words').doc(docId(w)).set({word:w,part_of_speech:t,definition:d,example:e,translation:tr,createdAt:firebase.firestore.FieldValue.serverTimestamp()});
       busy=false;['nw','nd','ne','nr'].forEach(function(id){document.getElementById(id).value=''});document.getElementById('nt').value='';
-      m.textContent='';toast('Guardado: '+w);
+      var was=!!editing;editing=null;m.textContent='';render();toast((was?'Actualizada: ':'Guardado: ')+w);
     }catch(err){busy=false;m.textContent='No se guardó. Revisa que tu cuenta tenga permiso.';m.className='msg err';console.error(err)}
   });
   app.querySelectorAll('[data-del]').forEach(function(b){b.addEventListener('click',async function(){
@@ -305,7 +323,7 @@ function bind(){
     if(pendingDel!==id){pendingDel=id;render();return}
     pendingDel=null;
     var x=words.find(function(y){return y.id===id});
-    try{await db.collection('b2_words').doc(id).delete();toast('Borrada: '+(x?x.word:''))}
+    try{await db.collection('b2_words').doc(id).delete();if(editing&&editing.id===id){editing=null;render()}toast('Borrada: '+(x?x.word:''))}
     catch(err){toast('No se pudo borrar.');console.error(err);render()}
   })});
 }

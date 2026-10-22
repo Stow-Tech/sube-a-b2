@@ -171,7 +171,7 @@ var DEMO=[
 
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
 function toast(t){var el=document.createElement('div');el.className='toast';el.textContent=t;document.body.appendChild(el);setTimeout(function(){el.remove()},2800)}
-function sortWords(){words.sort(function(a,b){return a.word.localeCompare(b.word,'en',{sensitivity:'base'})})}
+function sortWords(){words.sort(function(a,b){return (a.t0||0)-(b.t0||0)||a.word.localeCompare(b.word,'en',{sensitivity:'base'})})}
 function filtered(){var s=q.trim().toLowerCase();if(!s)return words;return words.filter(function(x){return (x.word+' '+x.definition+' '+(x.part_of_speech||'')+' '+(x.example||'')+' '+(x.translation||'')).toLowerCase().indexOf(s)>-1})}
 function speak(w){
   if(!window.speechSynthesis||!window.SpeechSynthesisUtterance){toast('Abre la página en Safari o Chrome para escuchar el audio');return}
@@ -260,7 +260,7 @@ function render(){
 function listen(){
   db.collection('b2_words').onSnapshot(function(snap){
     loading=false;loadError='';
-    words=snap.docs.map(function(d){var x=d.data();return {id:d.id,word:x.word,part_of_speech:x.part_of_speech||'',definition:x.definition,example:x.example||'',translation:x.translation||''}});
+    words=snap.docs.map(function(d){var x=d.data({serverTimestamps:'estimate'});return {t0:x.createdAt&&x.createdAt.toMillis?x.createdAt.toMillis():Date.now(),id:d.id,word:x.word,part_of_speech:x.part_of_speech||'',definition:x.definition,example:x.example||'',translation:x.translation||''}});
     sortWords();render();
   },function(err){loading=false;loadError='No se pudo cargar el vocabulario. Recarga la página.';console.error(err);render()});
 }

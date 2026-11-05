@@ -188,6 +188,15 @@ var app=document.getElementById('app');
 var auth=null, db=null, words=[], session=null, q='', loading=true, loadError='', pendingDel=null, showLogin=false, busy=false, demo=false;
 var editing=null, view='list', catFilter='';
 var CATS=[
+ 'Additive Connector','Contrasting Connector','Concessive Connector','Causal Connector','Consequence Connector',
+ 'Purpose & Condition Connector','Time & Sequence Connector','Exemplifying & Emphasizing Connector',
+ 'Summarizing & Clarifying Connector','Discourse Marker',
+ 'Phrasal Verb','Idiom','Collocation','Fixed Expression','Reporting Verb','Opinion & Stance Expression',
+ 'General Vocabulary','Academic Vocabulary','False Friend','Quantifier',
+ 'Science & Technology','Health & Body','Environment & Nature','Education','Business & Work','Money & Finance',
+ 'Law & Society','Media & Communication','Travel & Transport','Emotions & Personality'
+];, view='list', catFilter='';
+var CATS=[
  /* Connectors / linkers */
  'Contrasting Connector','Additive Connector','Causal Connector','Consequence Connector','Concessive Connector',
  'Purpose Connector','Conditional Connector','Time & Sequence Connector','Exemplifying Connector','Emphasizing Connector',

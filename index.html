@@ -145,6 +145,32 @@ footer{padding-block:32px 48px;display:flex;justify-content:space-between;gap:12
 .row .del{top:50px}
 .row:has(.edit){padding-right:140px}
 @media (max-width:720px){.row:has(.edit){padding-right:18px}.row .edit,.row .del{position:static;justify-self:start}}
+/* Categorías y vistas */
+.cat{font-family:var(--ui);font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);background:var(--accent-soft);padding:2px 8px}
+.viewbar{display:flex;margin-bottom:18px;border:1px solid var(--rule);background:var(--sheet);width:max-content;max-width:100%}
+.viewbar button{cursor:pointer;background:none;border:0;border-right:1px solid var(--rule-soft);padding:10px 18px;font-family:var(--ui);font-size:13px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.viewbar button:last-child{border-right:0}
+.viewbar button.on{background:var(--accent);color:var(--sheet)}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px}
+.chip{cursor:pointer;background:var(--sheet);border:1px solid var(--rule);padding:6px 12px;font-family:var(--ui);font-size:13px;color:var(--ink)}
+.chip:hover{border-color:var(--accent)}
+.chip b{font-weight:600;color:var(--accent);margin-left:4px}
+.chip.on{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.chip.on b{color:var(--paper)}
+.boxes{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px;align-items:start}
+.box{border:1px solid var(--rule);border-top:3px solid var(--accent);background:var(--sheet)}
+.box-h{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin:0;padding:14px 18px;font-family:var(--display);font-size:26px;font-weight:700;border-bottom:1px solid var(--rule)}
+.box-h b{font-family:var(--ui);font-size:12px;background:var(--accent);color:var(--sheet);padding:2px 8px;letter-spacing:.06em}
+.bw{padding:16px 18px;border-bottom:1px solid var(--rule-soft)}
+.bw:last-child{border-bottom:0}
+.bw-top{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.bw h3{font-family:var(--display);font-size:26px;font-weight:700;margin:0;line-height:1.1;overflow-wrap:anywhere}
+.bw .tr{margin:4px 0 0;font-size:16px}
+.bw-def{margin:8px 0 0;font-size:16px;line-height:1.45}
+.bw-ex{margin:8px 0 0;font-size:15px;font-style:italic;color:var(--muted);padding-left:12px;border-left:2px solid var(--sage)}
+.bw-act{display:flex;gap:8px;margin-top:10px}
+.bw-act .edit,.bw-act .del{position:static}
+@media (max-width:720px){.boxes{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -159,7 +185,21 @@ footer{padding-block:32px 48px;display:flex;justify-content:space-between;gap:12
 var cfg=window.SUBE_B2_FIREBASE||{};
 var app=document.getElementById('app');
 var auth=null, db=null, words=[], session=null, q='', loading=true, loadError='', pendingDel=null, showLogin=false, busy=false, demo=false;
-var editing=null;
+var editing=null, view='list', catFilter='';
+var CATS=[
+ /* Connectors / linkers */
+ 'Contrasting Connector','Additive Connector','Causal Connector','Consequence Connector','Concessive Connector',
+ 'Purpose Connector','Conditional Connector','Time & Sequence Connector','Exemplifying Connector','Emphasizing Connector',
+ 'Comparing Connector','Clarifying Connector','Summarizing Connector','Linking Adverb','Discourse Marker',
+ /* Fixed language */
+ 'Phrasal Verb','Idiom','Collocation','Fixed Expression','Proverb','False Friend',
+ /* Functions */
+ 'Reporting Verb','Opinion Expression','Agreeing & Disagreeing','Hedging Language','Quantifier','Formal Word','Informal Word','Academic Word',
+ /* Topics */
+ 'Science & Technology','Health & Body','Environment & Nature','Education','Business & Work','Money & Finance',
+ 'Law & Crime','Media & Communication','Politics & Government','Society & Culture','Travel & Transport',
+ 'Emotions & Feelings','Personality & Character','Military & Maritime','Food & Cooking','Home & Family'
+];
 var TYPES=['noun','verb','adjective','adverb','phrasal verb','idiom','collocation','preposition','conjunction','expression'];
 var DEMO=[
  {id:'d1',word:'acknowledge',part_of_speech:'verb',definition:'To accept or admit that something is true or exists.',example:'She acknowledged her mistake immediately.'},
@@ -172,7 +212,7 @@ var DEMO=[
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
 function toast(t){var el=document.createElement('div');el.className='toast';el.textContent=t;document.body.appendChild(el);setTimeout(function(){el.remove()},2800)}
 function sortWords(){words.sort(function(a,b){return (a.t0||0)-(b.t0||0)||a.word.localeCompare(b.word,'en',{sensitivity:'base'})})}
-function filtered(){var s=q.trim().toLowerCase();if(!s)return words;return words.filter(function(x){return (x.word+' '+x.definition+' '+(x.part_of_speech||'')+' '+(x.example||'')+' '+(x.translation||'')).toLowerCase().indexOf(s)>-1})}
+function filtered(){var s=q.trim().toLowerCase();if(!s)return words;return words.filter(function(x){return (x.word+' '+x.definition+' '+(x.part_of_speech||'')+' '+(x.example||'')+' '+(x.translation||'')+' '+(x.category||'')).toLowerCase().indexOf(s)>-1})}
 function speak(w){
   if(!window.speechSynthesis||!window.SpeechSynthesisUtterance){toast('Abre la página en Safari o Chrome para escuchar el audio');return}
   var s=window.speechSynthesis,u=new SpeechSynthesisUtterance(w),vs=s.getVoices()||[];
@@ -211,8 +251,9 @@ function adminHTML(){
   }
   return '<div class="panel" id="wordpanel"><h2><small>Modo profesor</small>'+(editing?'Editar: '+esc(editing.word):'Añadir una palabra')+'</h2>'+
     '<div class="grid2"><div class="field"><label for="nw">Palabra · Word</label><input id="nw" autocomplete="off"></div>'+
-    '<div class="field"><label for="nt">Categoría · Part of speech</label><select id="nt"><option value="">—</option>'+TYPES.map(function(t){return '<option>'+t+'</option>'}).join('')+'</select></div></div>'+
+    '<div class="field"><label for="nt">Parte de la oración · Part of speech</label><select id="nt"><option value="">—</option>'+TYPES.map(function(t){return '<option>'+t+'</option>'}).join('')+'</select></div></div>'+
     '<div class="field"><label for="nr">Traducción al español</label><input id="nr" autocomplete="off"></div>'+
+    '<div class="field"><label for="nc">Tipo de palabra · Categoría (elige o escribe)</label><input id="nc" list="catlist" autocomplete="off" placeholder="Ej. Contrasting Connector"><datalist id="catlist">'+allCats().map(function(c){return '<option value="'+esc(c)+'"></option>'}).join('')+'</datalist></div>'+
     '<div class="field"><label for="nd">Definición · Definition</label><textarea id="nd"></textarea></div>'+
     '<div class="field"><label for="ne">Ejemplo (opcional) · Example</label><input id="ne" autocomplete="off"></div>'+
     '<div class="actions"><button class="btn primary" id="add">'+(editing?'Guardar cambios':'Agregar palabra')+'</button>'+(editing?'<button class="btn" id="cancelEdit">Cancelar edición</button>':'')+'<button class="btn" id="lock">Cerrar sesión</button><span class="msg" id="addmsg"></span></div></div>';
@@ -227,9 +268,47 @@ function listHTML(){
   return '<div class="empty">Aún no hay palabras publicadas.'+(session?'<div class="actions" style="justify-content:center;margin-top:16px"><button class="btn" id="seed">Cargar 5 palabras de ejemplo</button></div>':'')+'</div>';
 }
 
+function allCats(){
+  var seen={},out=[];
+  CATS.concat(words.map(function(w){return w.category})).forEach(function(c){
+    if(c&&!seen[c.toLowerCase()]){seen[c.toLowerCase()]=1;out.push(c)}
+  });
+  return out;
+}
+function viewBar(){
+  return '<div class="viewbar"><button data-view="list" class="'+(view==='list'?'on':'')+'">Lista completa</button>'+
+    '<button data-view="cats" class="'+(view==='cats'?'on':'')+'">Por categorías</button></div>';
+}
+function boxItem(x){
+  return '<article class="bw"><div class="bw-top"><h3>'+esc(x.word)+'</h3>'+
+    '<button class="speak" data-say="'+esc(x.word)+'" aria-label="Escuchar '+esc(x.word)+'" title="Escuchar · Listen">'+SPK+'</button></div>'+
+    (x.part_of_speech?'<span class="type">'+esc(x.part_of_speech)+'</span>':'')+
+    (x.translation?'<p class="tr">'+esc(x.translation)+'</p>':'')+
+    '<p class="bw-def">'+esc(x.definition)+'</p>'+
+    (x.example?'<p class="bw-ex">'+esc(x.example)+'</p>':'')+
+    (session?'<div class="bw-act"><button class="edit" data-edit="'+esc(x.id)+'">Editar</button>'+
+      '<button class="del'+(pendingDel===x.id?' confirm':'')+'" data-del="'+esc(x.id)+'">'+(pendingDel===x.id?'¿Confirmar?':'Borrar')+'</button></div>':'')+
+  '</article>';
+}
+function boxesHTML(){
+  if(loading)return '<div class="empty">Cargando vocabulario…</div>';
+  if(loadError)return '<div class="empty">'+esc(loadError)+'</div>';
+  var l=filtered();
+  if(!l.length)return '<div class="empty">'+(words.length?'Sin resultados para “'+esc(q)+'”':'Aún no hay palabras publicadas.')+'</div>';
+  var g={},order=[];
+  l.forEach(function(x){var c=x.category||'Sin categoría';if(!g[c]){g[c]=[];order.push(c)}g[c].push(x)});
+  order.sort(function(a,b){if(a==='Sin categoría')return 1;if(b==='Sin categoría')return -1;return a.localeCompare(b,'en',{sensitivity:'base'})});
+  var chips='<div class="chips"><button class="chip'+(catFilter?'':' on')+'" data-cat="">Todas<b>'+l.length+'</b></button>'+
+    order.map(function(c){return '<button class="chip'+(catFilter===c?' on':'')+'" data-cat="'+esc(c)+'">'+esc(c)+'<b>'+g[c].length+'</b></button>'}).join('')+'</div>';
+  var show=(catFilter&&g[catFilter])?[catFilter]:order;
+  return chips+'<div class="boxes">'+show.map(function(c){
+    return '<section class="box"><h2 class="box-h"><span>'+esc(c)+'</span><b>'+g[c].length+'</b></h2><div class="box-list">'+g[c].map(boxItem).join('')+'</div></section>';
+  }).join('')+'</div>';
+}
+
 function render(){
   var a=document.activeElement, focusId=a&&a.id, keep={};
-  ['em','pw','nw','nt','nd','ne','nr'].forEach(function(id){var el=document.getElementById(id);if(el)keep[id]=el.value});
+  ['em','pw','nw','nt','nd','ne','nr','nc'].forEach(function(id){var el=document.getElementById(id);if(el)keep[id]=el.value});
   app.innerHTML=
   '<div class="band"><div class="wrap"><span>English Vocabulary Series · Level B2</span>'+
     '<button class="btn-link" id="openLock">'+(session?'● Modo profesor':'Acceso profesor')+'</button></div></div>'+
@@ -248,8 +327,8 @@ function render(){
     '<input id="q" type="search" placeholder="Buscar una palabra · Search a word" value="'+esc(q)+'" aria-label="Buscar"></label>'+
     '<div class="count"><b>'+words.length+'</b> palabras · entries</div></div>'+
   (demo?'<div class="demo">Vista previa con palabras de ejemplo. Conecta Firebase en config.js para publicar tu lista real.</div>':'')+
-  '<div class="head"><span>Palabra · Headword</span><span>Definición · Definition</span></div>'+
-  '<div class="list">'+listHTML()+'</div>'+
+  viewBar()+
+  (view==='list'?'<div class="head"><span>Palabra · Headword</span><span>Definición · Definition</span></div><div class="list">'+listHTML()+'</div>':boxesHTML())+
   '<footer><span>© '+new Date().getFullYear()+' Eduardo Stein</span><span>Sube a B2 · English · Español</span></footer>'+
   '</div>';
   Object.keys(keep).forEach(function(id){var el=document.getElementById(id);if(el)el.value=keep[id]});
@@ -260,7 +339,7 @@ function render(){
 function listen(){
   db.collection('b2_words').onSnapshot(function(snap){
     loading=false;loadError='';
-    words=snap.docs.map(function(d){var x=d.data({serverTimestamps:'estimate'});return {t0:x.createdAt&&x.createdAt.toMillis?x.createdAt.toMillis():Date.now(),id:d.id,word:x.word,part_of_speech:x.part_of_speech||'',definition:x.definition,example:x.example||'',translation:x.translation||''}});
+    words=snap.docs.map(function(d){var x=d.data({serverTimestamps:'estimate'});return {t0:x.createdAt&&x.createdAt.toMillis?x.createdAt.toMillis():Date.now(),id:d.id,word:x.word,part_of_speech:x.part_of_speech||'',definition:x.definition,example:x.example||'',translation:x.translation||'',category:x.category||''}});
     sortWords();render();
   },function(err){loading=false;loadError='No se pudo cargar el vocabulario. Recarga la página.';console.error(err);render()});
 }
@@ -270,6 +349,8 @@ function bind(){
   var qi=document.getElementById('q');
   qi.addEventListener('input',function(){q=qi.value;render()});
   app.querySelectorAll('[data-say]').forEach(function(b){b.addEventListener('click',function(){speak(b.getAttribute('data-say'))})});
+  app.querySelectorAll('[data-view]').forEach(function(b){b.addEventListener('click',function(){view=b.getAttribute('data-view');render()})});
+  app.querySelectorAll('[data-cat]').forEach(function(b){b.addEventListener('click',function(){catFilter=b.getAttribute('data-cat');render()})});
   document.getElementById('openLock').addEventListener('click',function(){
     if(session){window.scrollTo({top:0,behavior:'smooth'});return}
     if(demo){toast('Conecta Firebase para activar el acceso del profesor');return}
@@ -296,25 +377,25 @@ function bind(){
     var x=words.find(function(y){return y.id===b.getAttribute('data-edit')});if(!x)return;
     editing=x;pendingDel=null;render();
     document.getElementById('nw').value=x.word||'';document.getElementById('nt').value=x.part_of_speech||'';
-    document.getElementById('nr').value=x.translation||'';document.getElementById('nd').value=x.definition||'';document.getElementById('ne').value=x.example||'';
+    document.getElementById('nr').value=x.translation||'';document.getElementById('nc').value=x.category||'';document.getElementById('nd').value=x.definition||'';document.getElementById('ne').value=x.example||'';
     document.getElementById('wordpanel').scrollIntoView({behavior:'smooth',block:'start'});document.getElementById('nw').focus({preventScroll:true});
   })});
   var ce=document.getElementById('cancelEdit');
-  if(ce)ce.addEventListener('click',function(){editing=null;['nw','nr','nd','ne'].forEach(function(id){document.getElementById(id).value=''});document.getElementById('nt').value='';render()});
+  if(ce)ce.addEventListener('click',function(){editing=null;['nw','nr','nc','nd','ne'].forEach(function(id){document.getElementById(id).value=''});document.getElementById('nt').value='';render()});
   var lk=document.getElementById('lock');
   if(lk)lk.addEventListener('click',async function(){await auth.signOut();pendingDel=null;editing=null;toast('Sesión cerrada')});
   var ad=document.getElementById('add');
   if(ad)ad.addEventListener('click',async function(){
     if(busy)return;
-    var w=document.getElementById('nw').value.trim(),d=document.getElementById('nd').value.trim(),t=document.getElementById('nt').value,e=document.getElementById('ne').value.trim(),tr=document.getElementById('nr').value.trim();
+    var w=document.getElementById('nw').value.trim(),d=document.getElementById('nd').value.trim(),t=document.getElementById('nt').value,e=document.getElementById('ne').value.trim(),tr=document.getElementById('nr').value.trim(),cat=document.getElementById('nc').value.trim();
     var m=document.getElementById('addmsg');
     if(!w||!d){m.textContent='Escribe la palabra y su definición.';m.className='msg err';return}
     if(words.some(function(x){return x.word.toLowerCase()===w.toLowerCase()&&(!editing||x.id!==editing.id)})){m.textContent='“'+w+'” ya está en la lista.';m.className='msg err';return}
     busy=true;m.textContent='Guardando…';m.className='msg';
     try{
-      if(editing)await db.collection('b2_words').doc(editing.id).update({word:w,part_of_speech:t,definition:d,example:e,translation:tr});
-      else await db.collection('b2_words').doc(docId(w)).set({word:w,part_of_speech:t,definition:d,example:e,translation:tr,createdAt:firebase.firestore.FieldValue.serverTimestamp()});
-      busy=false;['nw','nd','ne','nr'].forEach(function(id){document.getElementById(id).value=''});document.getElementById('nt').value='';
+      if(editing)await db.collection('b2_words').doc(editing.id).update({word:w,part_of_speech:t,definition:d,example:e,translation:tr,category:cat});
+      else await db.collection('b2_words').doc(docId(w)).set({word:w,part_of_speech:t,definition:d,example:e,translation:tr,category:cat,createdAt:firebase.firestore.FieldValue.serverTimestamp()});
+      busy=false;['nw','nd','ne','nr','nc'].forEach(function(id){document.getElementById(id).value=''});document.getElementById('nt').value='';
       var was=!!editing;editing=null;m.textContent='';render();toast((was?'Actualizada: ':'Guardado: ')+w);
     }catch(err){busy=false;m.textContent='No se guardó. Revisa que tu cuenta tenga permiso.';m.className='msg err';console.error(err)}
   });

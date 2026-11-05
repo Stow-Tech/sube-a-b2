@@ -168,7 +168,8 @@ footer{padding-block:32px 48px;display:flex;justify-content:space-between;gap:12
 .bw .tr{margin:4px 0 0;font-size:16px}
 .bw-def{margin:8px 0 0;font-size:16px;line-height:1.45}
 .bw-ex{margin:8px 0 0;font-size:15px;font-style:italic;color:var(--muted);padding-left:12px;border-left:2px solid var(--sage)}
-.bw-act{display:flex;gap:8px;margin-top:10px}
+.bw-act{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center}
+.qcat{background:var(--paper);border:1px solid var(--rule);padding:4px 8px;font-family:var(--ui);font-size:12px;max-width:100%}
 .bw-act .edit,.bw-act .del{position:static}
 @media (max-width:720px){.boxes{grid-template-columns:1fr}}
 </style>
@@ -286,7 +287,7 @@ function boxItem(x){
     (x.translation?'<p class="tr">'+esc(x.translation)+'</p>':'')+
     '<p class="bw-def">'+esc(x.definition)+'</p>'+
     (x.example?'<p class="bw-ex">'+esc(x.example)+'</p>':'')+
-    (session?'<div class="bw-act"><button class="edit" data-edit="'+esc(x.id)+'">Editar</button>'+
+    (session?'<div class="bw-act"><select class="qcat" data-qcat="'+esc(x.id)+'" aria-label="Categoría"><option value="">Asignar categoría…</option>'+allCats().map(function(c){return '<option'+(c===x.category?' selected':'')+'>'+esc(c)+'</option>'}).join('')+'</select><button class="edit" data-edit="'+esc(x.id)+'">Editar</button>'+
       '<button class="del'+(pendingDel===x.id?' confirm':'')+'" data-del="'+esc(x.id)+'">'+(pendingDel===x.id?'¿Confirmar?':'Borrar')+'</button></div>':'')+
   '</article>';
 }
@@ -351,6 +352,10 @@ function bind(){
   app.querySelectorAll('[data-say]').forEach(function(b){b.addEventListener('click',function(){speak(b.getAttribute('data-say'))})});
   app.querySelectorAll('[data-view]').forEach(function(b){b.addEventListener('click',function(){view=b.getAttribute('data-view');render()})});
   app.querySelectorAll('[data-cat]').forEach(function(b){b.addEventListener('click',function(){catFilter=b.getAttribute('data-cat');render()})});
+  app.querySelectorAll('[data-qcat]').forEach(function(s){s.addEventListener('change',async function(){
+    try{await db.collection('b2_words').doc(s.getAttribute('data-qcat')).update({category:s.value});toast('Categoría guardada')}
+    catch(err){toast('No se pudo guardar.');console.error(err)}
+  })});
   document.getElementById('openLock').addEventListener('click',function(){
     if(session){window.scrollTo({top:0,behavior:'smooth'});return}
     if(demo){toast('Conecta Firebase para activar el acceso del profesor');return}

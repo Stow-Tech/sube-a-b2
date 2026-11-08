@@ -309,7 +309,7 @@ function boxesHTML(){
   l.forEach(function(x){var c=x.category||'Sin categoría';if(!g[c]){g[c]=[];order.push(c)}g[c].push(x)});
   function pos(c){if(c==='Sin categoría')return 9999;var i=CATS.indexOf(c);return i<0?5000:i}
   order.sort(function(a,b){return pos(a)-pos(b)||a.localeCompare(b,'en',{sensitivity:'base'})});
-  var chips='<div class="chips"><button class="chip'+(catFilter?'':' on')+'" data-cat="">Todas<b>'+l.length+'</b></button>'+
+  var chips='<div class="chips">'+
     order.map(function(c){return '<button class="chip'+(catFilter===c?' on':'')+'" data-cat="'+esc(c)+'">'+esc(c)+'<b>'+g[c].length+'</b></button>'}).join('')+'</div>';
   var show=(catFilter&&g[catFilter])?[catFilter]:order;
   return chips+'<div class="boxes">'+show.map(function(c){
@@ -361,7 +361,7 @@ function bind(){
   qi.addEventListener('input',function(){q=qi.value;render()});
   app.querySelectorAll('[data-say]').forEach(function(b){b.addEventListener('click',function(){speak(b.getAttribute('data-say'))})});
   app.querySelectorAll('[data-view]').forEach(function(b){b.addEventListener('click',function(){view=b.getAttribute('data-view');render()})});
-  app.querySelectorAll('[data-cat]').forEach(function(b){b.addEventListener('click',function(){catFilter=b.getAttribute('data-cat');render()})});
+  app.querySelectorAll('[data-cat]').forEach(function(b){b.addEventListener('click',function(){var c=b.getAttribute('data-cat');catFilter=(catFilter===c)?'':c;render()})});
   app.querySelectorAll('[data-qcat]').forEach(function(s){s.addEventListener('change',async function(){
     try{await db.collection('b2_words').doc(s.getAttribute('data-qcat')).update({category:s.value});toast('Categoría guardada')}
     catch(err){toast('No se pudo guardar.');console.error(err)}

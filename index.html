@@ -195,8 +195,8 @@ var CATS=[
  'General Vocabulary','Academic Vocabulary','False Friend','Quantifier',
  'Science & Technology','Health & Body','Environment & Nature','Education','Business & Work','Money & Finance',
  'Law & Society','Media & Communication','Travel & Transport','Emotions & Personality'
-];, view='list', catFilter='';
-var CATS=[
+];
+var CATS_OLD=[
  /* Connectors / linkers */
  'Contrasting Connector','Additive Connector','Causal Connector','Consequence Connector','Concessive Connector',
  'Purpose Connector','Conditional Connector','Time & Sequence Connector','Exemplifying Connector','Emphasizing Connector',
@@ -307,7 +307,8 @@ function boxesHTML(){
   if(!l.length)return '<div class="empty">'+(words.length?'Sin resultados para “'+esc(q)+'”':'Aún no hay palabras publicadas.')+'</div>';
   var g={},order=[];
   l.forEach(function(x){var c=x.category||'Sin categoría';if(!g[c]){g[c]=[];order.push(c)}g[c].push(x)});
-  order.sort(function(a,b){if(a==='Sin categoría')return 1;if(b==='Sin categoría')return -1;return a.localeCompare(b,'en',{sensitivity:'base'})});
+  function pos(c){if(c==='Sin categoría')return 9999;var i=CATS.indexOf(c);return i<0?5000:i}
+  order.sort(function(a,b){return pos(a)-pos(b)||a.localeCompare(b,'en',{sensitivity:'base'})});
   var chips='<div class="chips"><button class="chip'+(catFilter?'':' on')+'" data-cat="">Todas<b>'+l.length+'</b></button>'+
     order.map(function(c){return '<button class="chip'+(catFilter===c?' on':'')+'" data-cat="'+esc(c)+'">'+esc(c)+'<b>'+g[c].length+'</b></button>'}).join('')+'</div>';
   var show=(catFilter&&g[catFilter])?[catFilter]:order;
